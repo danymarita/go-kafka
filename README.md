@@ -15,3 +15,9 @@ docker run --net=host --rm confluentinc/cp-kafka:latest kafka-topics --zookeeper
 
 5. Run API for writer by **make run_api**
 6. Run API for writer by **make run_api**
+7. Make **POST** request to **http://localhost:4500/api/v1/data** with JSON request body below
+```
+{
+	"text": "Your text!"
+}
+```
