@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -25,6 +26,10 @@ var (
 	kafkaConsumerGroup string
 	kafkaClientId      string
 )
+
+type ReqMessage struct {
+	Text string `json:"text"`
+}
 
 func readViperConfig() *viper.Viper {
 	v := viper.New()
@@ -75,6 +80,7 @@ func main() {
 	reader := kafka.NewReader(config)
 	defer reader.Close()
 
+	var req ReqMessage
 	for {
 		m, err := reader.ReadMessage(context.Background())
 		if err != nil {
@@ -88,5 +94,13 @@ func main() {
 		}
 
 		fmt.Printf("message at topic/partition/offset %v/%v/%v: %s\n", m.Topic, m.Partition, m.Offset, string(m.Value))
+
+		err = json.Unmarshal(m.Value, &req)
+		if err != nil {
+			log.Error().Msgf("error while unmarshalling message: %s", err.Error())
+			continue
+		}
+
+		fmt.Printf("Text of the message: %s\n", req.Text)
 	}
 }
