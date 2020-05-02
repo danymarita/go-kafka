@@ -1,0 +1,9 @@
+#binary file
+go_kafka_api
+go_kafka_worker
+
+#param file
+params/gokafka.toml
+
+#vscode files
+.vscode/

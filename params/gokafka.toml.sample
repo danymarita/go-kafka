@@ -1,0 +1,11 @@
+[app]
+host = "0.0.0.0"
+port = 4500
+name = "go-kafka"
+
+[kafka]
+broker_url = "localhost:19092,localhost:29092,localhost:39092"
+verbose = true
+client_id = "my-kafka-client"
+topic = "foo"
+consumer_group = "kafka-consumer-group"
