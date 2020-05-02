@@ -13,16 +13,10 @@ help:
 	@echo 'Management commands for ${APP_NAME}:'
 	@echo
 	@echo 'Usage:'
-	@echo '    make build                 Compile the project.'
-	@echo '    make package               Build final Docker image with just the Go binary inside.'
-	@echo '    make tag                   Tag image created by package with latest, git commit and version.'
-	@echo '    make push                  Push tagged images to registry.'
-	@echo '    make helm                  Deploy to Kubernetes via Helm.'
-	@echo '    make helm-migration        Run database migration via Helm.'
-	@echo '    make run ARGS=             Run with supplied arguments.'
-	@echo '    make test                  Run tests on a compiled project.'
-	@echo '    make test-cover            Run tests with goveralls.'
-	@echo '    make clean                 Clean the directory tree.'
+	@echo '    make build_api                 Compile API for writer.'
+	@echo '    make build_worker              Compile worker for reader.'
+	@echo '    make run_api                   Run API for writer.'
+	@echo '    make run_worker                Run worker for reader.'
 
 	@echo
 
