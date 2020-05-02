@@ -1,5 +1,5 @@
-https://medium.com/@yusufs/getting-started-with-kafka-in-golang-14ccab5fa26
-How To Run
+Based on article : https://medium.com/@yusufs/getting-started-with-kafka-in-golang-14ccab5fa26
+### How To Run
 1. Run Kafka Cluster by execute **docker-compose.yml** file by **MY_IP=your-ip docker-compose up**. Find your IP using **ip a** command.
 2. For Example, create topic **foo** with 4 partitions and replication factors = 2 using command below.
 ```
