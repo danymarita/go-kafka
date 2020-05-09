@@ -7,15 +7,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
+
+	"github.com/danymarita/go-kafka/dep/app"
 
 	"github.com/danymarita/go-kafka/dep/kafka"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
 )
 
 var logger = log.With().Str("pkg", "main").Logger()
@@ -27,40 +26,20 @@ var (
 	kafkaBrokerUrl string
 	kafkaVerbose   bool
 	kafkaClientId  string
-	kafkaTopic     string
+	orderTopic     string
 )
 
-func readViperConfig() *viper.Viper {
-	v := viper.New()
-	v.AddConfigPath(".")
-	v.AddConfigPath("./params")
-	v.AddConfigPath("/opt/go-kafka/params")
-	_, b, _, _ := runtime.Caller(0)
-	basepath := filepath.Dir(b)
-	v.AddConfigPath(fmt.Sprintf("%s/../params", basepath))
-	v.SetConfigName("gokafka")
-
-	err := v.ReadInConfig()
-	if err == nil {
-		fmt.Printf("Using config file: %s \n\n", v.ConfigFileUsed())
-	} else {
-		panic(fmt.Errorf("Config error: %s", err))
-	}
-
-	return v
-}
-
 func main() {
-	cfg := readViperConfig()
+	cfg := app.ReadViperConfig()
 	appName = cfg.GetString("app.name")
 	listenAddrApi = fmt.Sprintf("%s:%s", cfg.GetString("app.host"), cfg.GetString("app.port"))
 	// Kafka
 	kafkaBrokerUrl = cfg.GetString("kafka.broker_url")
 	kafkaVerbose = cfg.GetBool("kafka.verbose")
 	kafkaClientId = cfg.GetString("kafka.client_id")
-	kafkaTopic = cfg.GetString("kafka.topic")
+	orderTopic = cfg.GetString("topics.order_req")
 
-	kafkaProducer, err := kafka.Configure(strings.Split(kafkaBrokerUrl, ","), kafkaClientId, kafkaTopic)
+	kafkaProducer, err := kafka.Configure(strings.Split(kafkaBrokerUrl, ","), kafkaClientId, orderTopic)
 	if err != nil {
 		logger.Error().Str("error", err.Error()).Msg("unable to configure kafka")
 		return
@@ -110,12 +89,10 @@ func postDataToKafka(ctx *gin.Context) {
 	parent := context.Background()
 	defer parent.Done()
 
-	form := &struct {
-		Text string `form:"text" json:"text"`
-	}{}
+	order := &app.OrderReq{}
 
-	ctx.Bind(form)
-	formInBytes, err := json.Marshal(form)
+	ctx.Bind(order)
+	orderInBytes, err := json.Marshal(order)
 	if err != nil {
 		ctx.JSON(http.StatusUnprocessableEntity, map[string]interface{}{
 			"error": map[string]interface{}{
@@ -127,7 +104,7 @@ func postDataToKafka(ctx *gin.Context) {
 		return
 	}
 
-	err = kafka.Push(parent, nil, formInBytes)
+	err = kafka.Push(parent, nil, orderInBytes)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, map[string]interface{}{
 			"error": map[string]interface{}{
@@ -142,6 +119,6 @@ func postDataToKafka(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, map[string]interface{}{
 		"success": true,
 		"message": "success push data into kafka",
-		"data":    form,
+		"data":    order,
 	})
 }

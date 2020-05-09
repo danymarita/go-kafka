@@ -1,6 +1,7 @@
 #binary file
 go_kafka_api
-go_kafka_worker
+go_kafka_order_worker
+go_kafka_email_sender_worker
 
 #param file
 params/gokafka.toml

@@ -6,61 +6,36 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/danymarita/go-kafka/dep/app"
 	"github.com/rs/zerolog/log"
 	"github.com/segmentio/kafka-go"
 	_ "github.com/segmentio/kafka-go/snappy"
-	"github.com/spf13/viper"
 )
 
 var (
 	// kafka
 	kafkaBrokerUrl     string
 	kafkaVerbose       bool
-	kafkaTopic         string
+	orderTopic         string
+	sendEmailTopic     string
 	kafkaConsumerGroup string
 	kafkaClientId      string
 )
 
-type ReqMessage struct {
-	Text string `json:"text"`
-}
-
-func readViperConfig() *viper.Viper {
-	v := viper.New()
-	v.AddConfigPath(".")
-	v.AddConfigPath("./params")
-	v.AddConfigPath("/opt/go-kafka/params")
-	_, b, _, _ := runtime.Caller(0)
-	basepath := filepath.Dir(b)
-	v.AddConfigPath(fmt.Sprintf("%s/../params", basepath))
-	v.SetConfigName("gokafka")
-
-	err := v.ReadInConfig()
-	if err == nil {
-		fmt.Printf("Using config file: %s \n\n", v.ConfigFileUsed())
-	} else {
-		panic(fmt.Errorf("Config error: %s", err))
-	}
-
-	return v
-}
-
 func main() {
-	cfg := readViperConfig()
+	cfg := app.ReadViperConfig()
 	// Kafka
 	kafkaBrokerUrl = cfg.GetString("kafka.broker_url")
 	kafkaVerbose = cfg.GetBool("kafka.verbose")
 	kafkaClientId = cfg.GetString("kafka.client_id")
 	kafkaConsumerGroup = cfg.GetString("kafka.consumer_group")
-	kafkaTopic = cfg.GetString("kafka.topic")
+	sendEmailTopic = cfg.GetString("topics.send_email")
 
-	log.Info().Msg(fmt.Sprintf("Running Kafka worker. ConsumerGroup %s Topic %s...", kafkaConsumerGroup, kafkaTopic))
+	log.Info().Msg(fmt.Sprintf("Running Kafka worker. ConsumerGroup %s Topic %s...", kafkaConsumerGroup, sendEmailTopic))
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
@@ -70,7 +45,7 @@ func main() {
 	config := kafka.ReaderConfig{
 		Brokers:         brokers,
 		GroupID:         kafkaConsumerGroup,
-		Topic:           kafkaTopic,
+		Topic:           sendEmailTopic,
 		MinBytes:        10e3,            // 10KB
 		MaxBytes:        10e6,            // 10MB
 		MaxWait:         1 * time.Second, // Maximum amount of time to wait for new data to come when fetching batches of messages from kafka.
@@ -80,14 +55,10 @@ func main() {
 	reader := kafka.NewReader(config)
 	defer reader.Close()
 
-	var req ReqMessage
+	var req app.SendEmail
+	ctx := context.Background()
 	for {
-		m, err := reader.ReadMessage(context.Background())
-		if err != nil {
-			log.Error().Msgf("error while receiving message: %s", err.Error())
-			continue
-		}
-
+		m, err := reader.ReadMessage(ctx)
 		if err != nil {
 			log.Error().Msgf("error while receiving message: %s", err.Error())
 			continue
@@ -101,6 +72,6 @@ func main() {
 			continue
 		}
 
-		fmt.Printf("Text of the message: %s\n", req.Text)
+		fmt.Printf("Order Processed, send email to %s (%s). Message is %s\n", req.User.Name, req.User.Email, req.Message)
 	}
 }
