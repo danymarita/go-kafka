@@ -12,3 +12,10 @@ consumer_group = "kafka-consumer-group"
 [topics]
 order_req = "order_req"
 send_email = "send_email"
+
+[mailtrap]
+username = "mailtrap_username"
+password = "mailtrap_password"
+host = "mailtrap_host"
+port = "mailtrap_port"
+from = "from@example.com"

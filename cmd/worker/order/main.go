@@ -69,7 +69,7 @@ func main() {
 	for {
 		m, err := reader.ReadMessage(ctx)
 		if err != nil {
-			log.Error().Msgf("error while receiving message: %s", err.Error())
+			log.Error().Msgf("Error while receiving message: %s", err.Error())
 			continue
 		}
 

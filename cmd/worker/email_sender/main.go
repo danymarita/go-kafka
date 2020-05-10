@@ -57,10 +57,12 @@ func main() {
 
 	var req app.SendEmail
 	ctx := context.Background()
+
+	emailClient := app.NewEmailClient(cfg.GetString("mailtrap.username"), cfg.GetString("mailtrap.password"), cfg.GetString("mailtrap.host"), cfg.GetString("mailtrap.port"))
 	for {
 		m, err := reader.ReadMessage(ctx)
 		if err != nil {
-			log.Error().Msgf("error while receiving message: %s", err.Error())
+			log.Error().Msgf("Error while receiving message: %s", err.Error())
 			continue
 		}
 
@@ -68,10 +70,11 @@ func main() {
 
 		err = json.Unmarshal(m.Value, &req)
 		if err != nil {
-			log.Error().Msgf("error while unmarshalling message: %s", err.Error())
+			log.Error().Msgf("Error while unmarshalling message: %s", err.Error())
 			continue
 		}
 
 		fmt.Printf("Order Processed, send email to %s (%s). Message is %s\n", req.User.Name, req.User.Email, req.Message)
+		err = emailClient.Send(cfg.GetString("mailtrap.from"), []string{req.User.Email}, []byte("From: "+cfg.GetString("mailtrap.from")+"\r\nTo: "+req.User.Email+"\r\nSubject: Order Processed\r\n\r\n"+req.Message+"\r\n"))
 	}
 }
