@@ -15,6 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/segmentio/kafka-go"
 	_ "github.com/segmentio/kafka-go/snappy"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -39,8 +40,19 @@ func main() {
 
 	log.Info().Msg(fmt.Sprintf("Running Kafka worker. ConsumerGroup %s Topic %s...", kafkaConsumerGroup, orderTopic))
 
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+	ctx, cancel := context.WithCancel(context.Background())
+	idleConnectionClosed := make(chan struct{})
+	run := true
+	go func() {
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+		<-signalChan
+
+		log.Printf("Caught signal %v: terminating\n", signalChan)
+		run = false
+		cancel()
+		close(idleConnectionClosed)
+	}()
 
 	brokers := strings.Split(kafkaBrokerUrl, ",")
 
@@ -65,8 +77,7 @@ func main() {
 	defer kafkaProducer.Close()
 
 	var req app.OrderReq
-	ctx := context.Background()
-	for {
+	for run == true {
 		m, err := reader.ReadMessage(ctx)
 		if err != nil {
 			log.Error().Msgf("Error while receiving message: %s", err.Error())
@@ -101,4 +112,6 @@ func main() {
 			continue
 		}
 	}
+	<-idleConnectionClosed
+	logrus.Infoln("[Worker] Bye")
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/segmentio/kafka-go"
 	_ "github.com/segmentio/kafka-go/snappy"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -37,8 +38,19 @@ func main() {
 
 	log.Info().Msg(fmt.Sprintf("Running Kafka worker. ConsumerGroup %s Topic %s...", kafkaConsumerGroup, sendEmailTopic))
 
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+	ctx, cancel := context.WithCancel(context.Background())
+	idleConnectionClosed := make(chan struct{})
+	run := true
+	go func() {
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+		<-signalChan
+
+		log.Printf("Caught signal %v: terminating\n", signalChan)
+		run = false
+		cancel()
+		close(idleConnectionClosed)
+	}()
 
 	brokers := strings.Split(kafkaBrokerUrl, ",")
 
@@ -56,10 +68,8 @@ func main() {
 	defer reader.Close()
 
 	var req app.SendEmail
-	ctx := context.Background()
-
 	emailClient := app.NewEmailClient(cfg.GetString("mailtrap.username"), cfg.GetString("mailtrap.password"), cfg.GetString("mailtrap.host"), cfg.GetString("mailtrap.port"))
-	for {
+	for run == true {
 		m, err := reader.ReadMessage(ctx)
 		if err != nil {
 			log.Error().Msgf("Error while receiving message: %s", err.Error())
@@ -77,4 +87,6 @@ func main() {
 		fmt.Printf("Order Processed, send email to %s (%s). Message is %s\n", req.User.Name, req.User.Email, req.Message)
 		err = emailClient.Send(cfg.GetString("mailtrap.from"), []string{req.User.Email}, []byte("From: "+cfg.GetString("mailtrap.from")+"\r\nTo: "+req.User.Email+"\r\nSubject: Order Processed\r\n\r\n"+req.Message+"\r\n"))
 	}
+	<-idleConnectionClosed
+	logrus.Infoln("[Worker] Bye")
 }

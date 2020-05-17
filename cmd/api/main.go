@@ -79,7 +79,7 @@ func server(listenAddr string) (err error) {
 	}
 
 	if err = router.Run(listenAddr); err != nil {
-
+		logger.Error().Msg(fmt.Sprintf("Server failed to running. Error: %s...", err.Error()))
 	}
 	logger.Info().Msg(fmt.Sprintf("%s running at %s...", appName, listenAddr))
 	return
